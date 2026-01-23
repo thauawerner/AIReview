@@ -11,9 +11,9 @@ const prNumber = parseInt(process.env.PR_NUMBER);
 const baseRef = process.env.BASE_REF;
 
 // Carregar configurações
-const rules = yaml.load(fs.readFileSync('.review/rules.yml', 'utf8'));
-const ignore = yaml.load(fs.readFileSync('.review/ignore.yml', 'utf8'));
-const promptTemplate = fs.readFileSync('.review/prompts/review.md', 'utf8');
+const rules = yaml.load(fs.readFileSync('../.review/rules.yml', 'utf8'));
+const ignore = yaml.load(fs.readFileSync('../.review/ignore.yml', 'utf8'));
+const promptTemplate = fs.readFileSync('../.review/prompts/review.md', 'utf8');
 
 // === FUNÇÕES DE UTILIDADE ===
 
