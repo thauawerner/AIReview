@@ -1,0 +1,27 @@
+# ==============================
+# Regras de Code Review do Projeto
+# ==============================
+
+angular:
+  changeDetection: OnPush
+  noAny: true
+  preferReadonly: true
+  maxMethodLines: 40
+  noLogicInTemplate: true
+  unsubscribeObservables: true
+
+csharp:
+  asyncAwait: true
+  noBlockingCalls: true
+  useDTO: true
+  noLogicInController: true
+  validateNulls: true
+  useCancellationToken: true
+
+general:
+  cleanCode: true
+  noDeadCode: true
+  namingConvention:
+    angular: camelCase
+    csharp: PascalCase
+  maxFileLines: 400

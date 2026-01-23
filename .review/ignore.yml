@@ -1,0 +1,15 @@
+# Pastas
+- node_modules
+- dist
+- build
+- bin
+- obj
+- coverage
+
+# Arquivos
+- "*.spec.ts"
+- "*.test.ts"
+- "*.Designer.cs"
+- "*.generated.cs"
+- "*.min.js"
+- "*.lock"
