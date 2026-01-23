@@ -346,10 +346,16 @@ async function main() {
     const language = detectLanguage(file);
     const diff = getFileDiff(file);
     
-    if (!diff || diff.trim().length === 0) {
-      console.log(`  ⏭️  Sem mudanças relevantes`);
-      continue;
-    }
+ if (!diff || diff.trim().length === 0) {
+  console.log(`  ⚠️  Diff vazio, analisando arquivo completo`);
+  
+  diff = fs.readFileSync(
+    path.join(projectRoot, file),
+    'utf8'
+  );
+
+  diff = `--- FULL FILE CONTENT ---\n${diff}`;
+}
 
     const review = await analyzeFileWithCopilot(file, diff, language);
     
