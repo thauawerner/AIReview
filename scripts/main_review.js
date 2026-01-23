@@ -3,9 +3,14 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
-
+import OpenAI from "openai";
+import 'dotenv/config';
 
 import { fileURLToPath } from 'url';
+
+
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -129,12 +134,14 @@ function getLanguageRules(language) {
   };
 }
 
-// === ANÁLISE COM COPILOT ===
 
-async function analyzeFileWithCopilot(filepath, diff, language) {
+async function analyzeFileWithOpenAi(filepath, diff, language) {
   const relevantRules = getLanguageRules(language);
-  
-  // Montar prompt com contexto completo
+
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY 
+  });
+
   const prompt = `# Code Review Task
 
 ## File Information
@@ -156,45 +163,36 @@ ${diff}
 Analyze this code following the format specified in the instructions above.`;
 
   try {
-    const response = await fetch('https://api.githubcopilot.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Editor-Version': 'vscode/1.85.0',
-        'Editor-Plugin-Version': 'copilot-chat/0.11.0',
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a senior code reviewer. Be concise, specific, and focus on project rules compliance.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        model: 'gpt-4',
-        temperature: 0.2,
-        max_tokens: 2000,
-        stream: false
-      })
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a senior code reviewer. Be concise, objective, and strictly follow the project rules.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 1200
     });
 
-    if (!response.ok) {
-      throw new Error(`Copilot API error: ${response.status} ${response.statusText}`);
-    }
+    return response.choices?.[0]?.message?.content ?? null;
 
-    const data = await response.json();
-    return data.choices[0].message.content;
   } catch (error) {
-    console.error(`❌ Erro ao analisar ${filepath}:`, error.message);
+    console.error(`❌ Erro ao analisar ${filepath}`);
+    console.error('Status:', error.status);
+    console.error('Message:', error.message);
+    console.error('Details:', error.response?.data || error);
     return null;
   }
 }
 
-// === AGREGAÇÃO E POSTING ===
+
+
 
 function aggregateReviews(fileReviews) {
   let aggregated = `# 🤖 AI Code Review Summary\n\n`;
@@ -285,17 +283,24 @@ async function postReviewComment(aggregated) {
 
 async function submitFormalReview(hasCritical, hasWarnings) {
   try {
-    let event, body;
+    const { data: pr } = await octokit.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber
+    });
+
+    const isOwnPR = pr.user.login === 'github-actions[bot]';
+
+    let event = 'COMMENT';
+    let body = '✅ No critical issues detected. Manual review still recommended.';
 
     if (hasCritical) {
-      event = 'REQUEST_CHANGES';
       body = '🔴 Critical issues detected. Please address before merging.';
+      if (!isOwnPR) {
+        event = 'REQUEST_CHANGES';
+      }
     } else if (hasWarnings) {
-      event = 'COMMENT';
       body = '⚠️ Some warnings found. Review recommended before merging.';
-    } else {
-      event = 'COMMENT';
-      body = '✅ No critical issues detected. Manual review still recommended.';
     }
 
     await octokit.pulls.createReview({
@@ -311,6 +316,7 @@ async function submitFormalReview(hasCritical, hasWarnings) {
     console.error('❌ Erro ao submeter review:', error.message);
   }
 }
+
 
 // === MAIN ===
 
@@ -341,34 +347,41 @@ async function main() {
   const fileReviews = [];
 
   for (const file of changedFiles) {
-    console.log(`🔍 Revisando: ${file}`);
-    
-    const language = detectLanguage(file);
-    const diff = getFileDiff(file);
-    
- if (!diff || diff.trim().length === 0) {
-  console.log(`  ⚠️  Diff vazio, analisando arquivo completo`);
+  console.log(`🔍 Revisando: ${file}`);
   
-  diff = fs.readFileSync(
-    path.join(projectRoot, file),
-    'utf8'
-  );
+  const language = detectLanguage(file);
+  let diff = getFileDiff(file);
 
-  diff = `--- FULL FILE CONTENT ---\n${diff}`;
-}
+  if (!diff || diff.trim().length === 0) {
+    console.log('  📄 Diff vazio, analisando arquivo completo');
 
-    const review = await analyzeFileWithCopilot(file, diff, language);
-    
-    if (review) {
-      fileReviews.push({ file, review, language });
-      console.log(`  ✓ Revisão concluída`);
-    } else {
-      console.log(`  ⚠️  Erro na revisão`);
+    const absoluteFilePath = path.join(projectRoot, file);
+
+    if (!fs.existsSync(absoluteFilePath)) {
+      console.log(`  ❌ Arquivo não encontrado: ${absoluteFilePath}`);
+      continue;
     }
 
-    // Delay para evitar rate limiting
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    const fullContent = fs.readFileSync(absoluteFilePath, 'utf8');
+
+    diff = `--- FULL FILE CONTENT ---
+${fullContent}`;
+  } else {
+    console.log('  🧩 Analisando apenas o diff');
   }
+
+  const review = await analyzeFileWithOpenAi(file, diff, language);
+
+  if (review) {
+    fileReviews.push({ file, review, language });
+    console.log(`  ✓ Revisão concluída`);
+  } else {
+    console.log(`  ⚠️  Erro na revisão`);
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 1500));
+}
+
 
   if (fileReviews.length === 0) {
     console.log('\n⚠️  Nenhuma análise foi gerada.');
