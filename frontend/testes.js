@@ -4,8 +4,8 @@ while (i < 10) {
     i++;
 }
 
-let i = 0;
-while (i < 10) {
+let ij = 0;
+while (ij < 10) {
     console.log("hello world!", i);
-    i++;
+    ij++;
 }
