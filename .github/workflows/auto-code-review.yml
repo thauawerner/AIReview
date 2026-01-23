@@ -23,8 +23,7 @@ jobs:
       - name: Get changed files
         id: changed-files
         run: |
-          chmod +x scripts/get_changed_files.sh
-          FILES=$(scripts/get_changed_files.sh)
+          FILES=$(./scripts/get_changed_files.sh)
           echo "files=$FILES" >> $GITHUB_OUTPUT
 
   review:
