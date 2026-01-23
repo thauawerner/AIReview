@@ -4,6 +4,12 @@ import yaml from 'js-yaml';
 import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
 
+
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
 // Configuração
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 const [owner, repo] = process.env.REPO_FULL_NAME.split('/');
@@ -11,9 +17,18 @@ const prNumber = parseInt(process.env.PR_NUMBER);
 const baseRef = process.env.BASE_REF;
 
 // Carregar configurações
-const rules = yaml.load(fs.readFileSync('../.review/rules.yml', 'utf8'));
-const ignore = yaml.load(fs.readFileSync('../.review/ignore.yml', 'utf8'));
-const promptTemplate = fs.readFileSync('../.review/prompts/review.md', 'utf8');
+const rules = yaml.load(
+  fs.readFileSync(path.join(projectRoot, '.review', 'rules.yml'), 'utf8')
+);
+
+const ignore = yaml.load(
+  fs.readFileSync(path.join(projectRoot, '.review', 'ignore.yml'), 'utf8')
+);
+
+const promptTemplate = fs.readFileSync(
+  path.join(projectRoot, '.review', 'prompts', 'review.md'),
+  'utf8'
+);
 
 // === FUNÇÕES DE UTILIDADE ===
 
@@ -35,17 +50,14 @@ function detectLanguage(filepath) {
 }
 
 function shouldIgnoreFile(filepath) {
-  // Verificar force_include primeiro
   if (ignore.force_include?.includes(filepath)) {
     return false;
   }
 
-  // Verificar pastas
   if (ignore.patterns.folders.some(folder => filepath.includes(folder))) {
     return true;
   }
 
-  // Verificar arquivos específicos
   if (ignore.patterns.files.some(pattern => {
     if (pattern.includes('*')) {
       const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
@@ -56,7 +68,6 @@ function shouldIgnoreFile(filepath) {
     return true;
   }
 
-  // Verificar extensões
   const ext = path.extname(filepath);
   if (ignore.patterns.extensions.includes(ext)) {
     return true;
