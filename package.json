@@ -1,0 +1,12 @@
+{
+  "name": "auto-code-review",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "review": "node scripts/main_review.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "js-yaml": "^4.1.0"
+  }
+}

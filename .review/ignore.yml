@@ -7,7 +7,66 @@
 - coverage
 
 # Arquivos
-- "*.spec.ts"
+- "*.spec.ts"# ==============================
+# Arquivos e Pastas Ignoradas
+# ==============================
+
+patterns:
+  folders:
+    - node_modules
+    - dist
+    - build
+    - bin
+    - obj
+    - coverage
+    - .next
+    - .nuxt
+    - out
+    - target
+    - vendor
+    - __pycache__
+    - .pytest_cache
+  
+  files:
+    # Testes
+    - "*.spec.ts"
+    - "*.test.ts"
+    - "*.spec.js"
+    - "*.test.js"
+    - "*.spec.tsx"
+    - "*.test.tsx"
+    
+    # Arquivos gerados
+    - "*.Designer.cs"
+    - "*.generated.cs"
+    - "*.g.cs"
+    - "*.designer.cs"
+    
+    # Minificados
+    - "*.min.js"
+    - "*.min.css"
+    
+    # Locks e configs
+    - "package-lock.json"
+    - "yarn.lock"
+    - "pnpm-lock.yaml"
+    - "Gemfile.lock"
+    - "Cargo.lock"
+    
+    # Build artifacts
+    - "*.map"
+    - "*.bundle.js"
+    
+  extensions:
+    - .lock
+    - .log
+    - .cache
+    - .tmp
+
+# Força análise mesmo se corresponder aos padrões acima
+force_include:
+  - "src/important-config.ts"
+  - "config/security.ts"
 - "*.test.ts"
 - "*.Designer.cs"
 - "*.generated.cs"

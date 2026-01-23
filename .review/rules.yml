@@ -2,26 +2,137 @@
 # Regras de Code Review do Projeto
 # ==============================
 
-angular:
-  changeDetection: OnPush
-  noAny: true
-  preferReadonly: true
-  maxMethodLines: 40
-  noLogicInTemplate: true
-  unsubscribeObservables: true
-
-csharp:
-  asyncAwait: true
-  noBlockingCalls: true
-  useDTO: true
-  noLogicInController: true
-  validateNulls: true
-  useCancellationToken: true
+languages:
+  typescript:
+    rules:
+      - id: no-any
+        severity: error
+        message: "Evite usar 'any'. Use tipos específicos ou 'unknown'."
+        patterns:
+          - ": any"
+          - "as any"
+      
+      - id: max-method-lines
+        severity: warning
+        threshold: 40
+        message: "Método muito longo. Considere refatorar (máx: 40 linhas)."
+      
+      - id: prefer-readonly
+        severity: warning
+        message: "Propriedades que não mudam devem ser 'readonly'."
+        patterns:
+          - "private \\w+:"
+          - "public \\w+:"
+      
+      - id: unsubscribe-observables
+        severity: error
+        message: "Observables devem ser cancelados no ngOnDestroy."
+        patterns:
+          - ".subscribe("
+        check: "ngOnDestroy com takeUntil ou unsubscribe"
+  
+  angular:
+    rules:
+      - id: change-detection-onpush
+        severity: warning
+        preferred: "OnPush"
+        message: "Prefira ChangeDetectionStrategy.OnPush para melhor performance."
+        check: "@Component sem changeDetection"
+      
+      - id: no-logic-in-template
+        severity: warning
+        maxComplexity: 2
+        message: "Templates não devem conter lógica complexa. Mova para o component."
+        patterns:
+          - "{{ .* \\? .* : .* \\? .* : .* }}"
+          - "\\*ngIf=\".*&&.*&&"
+  
+  csharp:
+    rules:
+      - id: async-await
+        severity: error
+        message: "Não bloqueie threads. Use async/await."
+        patterns:
+          - ".Result"
+          - ".Wait()"
+          - ".GetAwaiter().GetResult()"
+      
+      - id: use-dto
+        severity: warning
+        message: "Controllers devem usar DTOs, não entidades de domínio."
+        check: "Métodos de controller retornando entidades"
+      
+      - id: no-logic-in-controller
+        severity: warning
+        message: "Controllers devem apenas orquestrar. Mova lógica para services."
+        threshold: 10
+        unit: "lines per action"
+      
+      - id: validate-nulls
+        severity: error
+        message: "Sempre valide parâmetros contra null."
+        patterns:
+          - "public .* \\(.*\\) {"
+        check: "ArgumentNullException ou null check"
+      
+      - id: use-cancellation-token
+        severity: warning
+        message: "Métodos async devem aceitar CancellationToken."
+        patterns:
+          - "async Task"
+        check: "CancellationToken como último parâmetro"
 
 general:
-  cleanCode: true
-  noDeadCode: true
-  namingConvention:
-    angular: camelCase
-    csharp: PascalCase
-  maxFileLines: 400
+  rules:
+    - id: clean-code
+      severity: info
+      checks:
+        - "Nomes descritivos de variáveis"
+        - "Funções com responsabilidade única"
+        - "Comentários apenas quando necessário"
+    
+    - id: no-dead-code
+      severity: error
+      message: "Remova código comentado, TODOs antigos e imports não usados."
+      patterns:
+        - "// TODO: remover"
+        - "console.log"
+        - "debugger"
+        - "import .* from .* // não usado"
+    
+    - id: max-file-lines
+      severity: warning
+      threshold: 400
+      message: "Arquivo muito grande. Considere dividir em módulos menores."
+    
+    - id: naming-convention
+      severity: warning
+      conventions:
+        typescript: "camelCase para variáveis, PascalCase para classes"
+        csharp: "PascalCase para métodos públicos, camelCase para privados"
+        python: "snake_case"
+
+security:
+  rules:
+    - id: no-hardcoded-secrets
+      severity: critical
+      message: "NUNCA commite senhas, API keys ou tokens."
+      patterns:
+        - "password\\s*=\\s*['\"]"
+        - "api_key\\s*=\\s*['\"]"
+        - "token\\s*=\\s*['\"]"
+        - "secret\\s*=\\s*['\"]"
+    
+    - id: sql-injection
+      severity: critical
+      message: "Use queries parametrizadas para prevenir SQL injection."
+      patterns:
+        - "SELECT .* FROM .* WHERE .* \\+ "
+        - "\\$\\{.*\\} INTO"
+    
+    - id: xss-prevention
+      severity: critical
+      message: "Sanitize entrada do usuário antes de renderizar HTML."
+      patterns:
+        - "innerHTML\\s*="
+        - "dangerouslySetInnerHTML"
