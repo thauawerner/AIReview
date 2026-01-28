@@ -49,7 +49,8 @@ function detectLanguage(filepath) {
     '.java': 'java',
     '.go': 'go',
     '.rb': 'ruby',
-    '.php': 'php'
+    '.php': 'php',
+    '.md': 'markdown'
   };
   return mapping[ext] || null;
 }
@@ -139,7 +140,7 @@ async function analyzeFileWithOpenAi(filepath, diff, language) {
   const relevantRules = getLanguageRules(language);
 
   const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY 
+    apiKey: process.env.OPENAI_API_KEY
   });
 
   const prompt = `# Code Review Task
@@ -258,8 +259,8 @@ function aggregateReviews(fileReviews) {
 }
 
 async function postReviewComment(aggregated) {
-  const timestamp = new Date().toLocaleString('pt-BR', { 
-    timeZone: 'America/Sao_Paulo' 
+  const timestamp = new Date().toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo'
   });
 
   const body = `${aggregated.body}
@@ -326,7 +327,7 @@ async function main() {
   // 1. Obter arquivos modificados
   console.log('📂 Detectando arquivos modificados...');
   const changedFiles = getChangedFiles();
-  
+
   if (changedFiles.length === 0) {
     console.log('ℹ️  Nenhum arquivo relevante para revisar.');
     await octokit.issues.createComment({
@@ -347,40 +348,40 @@ async function main() {
   const fileReviews = [];
 
   for (const file of changedFiles) {
-  console.log(`🔍 Revisando: ${file}`);
-  
-  const language = detectLanguage(file);
-  let diff = getFileDiff(file);
+    console.log(`🔍 Revisando: ${file}`);
 
-  if (!diff || diff.trim().length === 0) {
-    console.log('  📄 Diff vazio, analisando arquivo completo');
+    const language = detectLanguage(file);
+    let diff = getFileDiff(file);
 
-    const absoluteFilePath = path.join(projectRoot, file);
+    if (!diff || diff.trim().length === 0) {
+      console.log('  📄 Diff vazio, analisando arquivo completo');
 
-    if (!fs.existsSync(absoluteFilePath)) {
-      console.log(`  ❌ Arquivo não encontrado: ${absoluteFilePath}`);
-      continue;
+      const absoluteFilePath = path.join(projectRoot, file);
+
+      if (!fs.existsSync(absoluteFilePath)) {
+        console.log(`  ❌ Arquivo não encontrado: ${absoluteFilePath}`);
+        continue;
+      }
+
+      const fullContent = fs.readFileSync(absoluteFilePath, 'utf8');
+
+      diff = `--- FULL FILE CONTENT ---
+${fullContent}`;
+    } else {
+      console.log('  🧩 Analisando apenas o diff');
     }
 
-    const fullContent = fs.readFileSync(absoluteFilePath, 'utf8');
+    const review = await analyzeFileWithOpenAi(file, diff, language);
 
-    diff = `--- FULL FILE CONTENT ---
-${fullContent}`;
-  } else {
-    console.log('  🧩 Analisando apenas o diff');
+    if (review) {
+      fileReviews.push({ file, review, language });
+      console.log(`  ✓ Revisão concluída`);
+    } else {
+      console.log(`  ⚠️  Erro na revisão`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1500));
   }
-
-  const review = await analyzeFileWithOpenAi(file, diff, language);
-
-  if (review) {
-    fileReviews.push({ file, review, language });
-    console.log(`  ✓ Revisão concluída`);
-  } else {
-    console.log(`  ⚠️  Erro na revisão`);
-  }
-
-  await new Promise(resolve => setTimeout(resolve, 1500));
-}
 
 
   if (fileReviews.length === 0) {
@@ -392,15 +393,12 @@ ${fullContent}`;
   console.log('\n📊 Agregando resultados...');
   const aggregated = aggregateReviews(fileReviews);
 
-  // 4. Postar comentário
   console.log('💬 Postando comentário no PR...');
   await postReviewComment(aggregated);
 
-  // 5. Submeter review formal
   console.log('✍️  Submetendo review formal...');
   await submitFormalReview(aggregated.hasCritical, aggregated.hasWarnings);
 
-  // 6. Resumo final
   console.log('\n' + '='.repeat(50));
   console.log('✅ AI Code Review concluído!');
   console.log('='.repeat(50));
