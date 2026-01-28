@@ -7,52 +7,32 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
-  detect-changes:
-    name: 🔍 Detect changed files
+  review:
+    name: 🧠 Review Code with AI
     runs-on: ubuntu-latest
-    outputs:
-      files: ${{ steps.changed-files.outputs.files }}
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      REPO_FULL_NAME: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      BASE_REF: ${{ github.base_ref }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get changed files
-        id: changed-files
-        run: |
-          FILES=$(./scripts/get_changed_files.sh)
-          echo "files=$FILES" >> $GITHUB_OUTPUT
-
-  review:
-    name: 🧠 Review files
-    needs: detect-changes
-    if: needs.detect-changes.outputs.files != '[]'
-    runs-on: ubuntu-latest
-
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        file: ${{ fromJson(needs.detect-changes.outputs.files) }}
-
-    steps:
-      - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Review file
-        run: |
-          echo "Reviewing ${{ matrix.file }}"
-          node scripts/review_file.js "${{ matrix.file }}"
+      - name: Install dependencies
+        run: npm install
 
-      - name: Post review comment
-        run: |
-          node scripts/post_review.js "${{ matrix.file }}"
+      - name: Run AI Code Review
+        run: node scripts/main_review.js
