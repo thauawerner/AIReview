@@ -5,18 +5,33 @@ on:
     branches:
       - main
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   validate-source-branch:
     runs-on: ubuntu-latest
 
     steps:
       - name: Validate PR source branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Target branch: ${{ github.base_ref }}"
           echo "Source branch: ${{ github.head_ref }}"
 
           if [ "${{ github.head_ref }}" != "dev" ]; then
-            echo "❌ PR bloqueado: apenas a branch 'dev' pode abrir PR para 'main'"
+            echo "❌ PR bloqueado"
+
+            # Comenta no PR
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --body "🚫 **PR fechado automaticamente**  
+              Apenas a branch **dev** pode abrir Pull Request para **main**."
+
+            # Fecha o PR
+            gh pr close ${{ github.event.pull_request.number }} --comment ""
+
             exit 1
           fi
 
