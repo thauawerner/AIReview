@@ -1,0 +1,23 @@
+name: Allow only dev → main
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-source-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR source branch
+        run: |
+          echo "Target branch: ${{ github.base_ref }}"
+          echo "Source branch: ${{ github.head_ref }}"
+
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "❌ PR bloqueado: apenas a branch 'dev' pode abrir PR para 'main'"
+            exit 1
+          fi
+
+          echo "✅ PR permitido: dev → main"
